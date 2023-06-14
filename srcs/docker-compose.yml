@@ -1,0 +1,82 @@
+version:  "3.9"
+
+networks:
+# --------------Network------------- #
+  inception:
+    name: inception
+    driver: bridge
+
+volumes:
+# --------------Volumes------------- #
+  DB:
+    name: DB
+    driver: local
+    driver_opts:
+      type: none
+      device: '/home/${USER}/data/DB'
+      o: bind
+
+  WordPress:
+    name: WordPress
+    driver: local
+    driver_opts:
+      type: none
+      device: '/home/${USER}/data/WordPress'
+      o: bind
+
+services:
+# --------------MariaDB------------- #
+  mariadb:
+    image: mariadb:myVersion
+    container_name: mariadb
+    build:
+      context: ./requirements/mariadb
+      args:
+        - MYSQL_ROOT_PASSWORD
+        - MYSQL_DATABASE
+        - MYSQL_USER
+        - MYSQL_PASSWORD
+    volumes:
+      - DB:/var/lib/mysql
+    networks:
+      - inception
+    ports:
+      - 3306
+    init: true
+    restart:  always
+
+# ---------------NginX-------------- #
+  nginx:
+    image: nginx:myVersion
+    container_name: nginx
+    build:
+      context: ./requirements/nginx
+    volumes:
+      - WordPress:/var/www/html
+    networks:
+      - inception
+    ports:
+      - 443:443
+      - 9000
+    depends_on:
+      - wordpress
+    restart:  always
+
+# -------------Wordpress------------ #
+  wordpress:
+    image: wordpress:myVersion
+    container_name: wordpress
+    build:
+      context: ./requirements/wordpress/
+    env_file:
+      - .env
+    volumes:
+      - WordPress:/var/www/html
+    networks:
+      - inception
+    depends_on:
+      - mariadb
+    ports:
+      - 3306
+      - 9000
+    restart:  always
